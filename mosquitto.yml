@@ -1,0 +1,104 @@
+namespace: mosquitto
+
+base:
+  defines: runnable
+  metadata:
+    name: Mosquitto | Open Source MQTT Broker
+    description: |
+      Eclipse Mosquitto is an open source message broker that implements the MQTT protocol versions 5.0, 3.1.1 and 3.1.
+      Mosquitto is lightweight and is suitable for use on all devices from low power single board computers to full servers.
+      The MQTT protocol provides a lightweight method of carrying out messaging using a publish/subscribe model.
+      This makes it suitable for Internet of Things messaging such as with low power sensors or mobile devices such as phones, embedded computers or microcontrollers.
+      Mosquitto features SSL/TLS support, quality of service levels 0, 1 and 2, and both clean and persistent sessions.
+    tags: mqtt, broker, iot, messaging, publish-subscribe, lightweight, ssl, tls, open source
+    website: https://mosquitto.org/
+    publisher: monk.io
+    icon: https://mosquitto.org/images/mosquitto-text-side-28.png
+    source: https://github.com/eclipse/mosquitto
+    private: true
+  containers:
+    broker:
+      image: eclipse-mosquitto
+      image-tag: latest
+
+mosquitto-broker:
+  defines: runnable
+  inherits: mosquitto/base
+  metadata:
+    private: false
+  containers:
+    broker:
+      paths:
+        - <- `${monk-volume-path}/mosquitto/data:/mosquitto/data`
+      ports:
+        - <- `${mqtt-port}:${mqtt-port}`
+        - <- `${websocket-port}:${websocket-port}`
+  files:
+    mosquitto-conf:
+      container: broker
+      mode: 0755
+      path: /mosquitto/config/mosquitto.conf
+      contents: |
+        # Mosquitto Configuration
+        listener {{ v "mqtt-port" }}
+        allow_anonymous {{ v "allow-anonymous" }}
+        
+        # WebSocket listener
+        listener {{ v "websocket-port" }}
+        protocol websockets
+        
+        # Persistence
+        persistence {{ v "persistence" }}
+        persistence_location /mosquitto/data/
+        
+        # Logging
+        log_dest stdout
+        log_type all
+        
+        # Connection limits
+        max_connections {{ v "max-connections" }}
+        
+        # Message retention
+        retain_available {{ v "retain-available" }}
+        
+        # Quality of Service
+        max_queued_messages 1000
+        message_size_limit 0
+  services:
+    mqtt:
+      container: broker
+      protocol: tcp
+      port: <- `${mqtt-port}`
+      host-port: <- `${mqtt-port}`
+      publish: false
+    websocket:
+      container: broker
+      protocol: tcp
+      port: <- `${websocket-port}`
+      host-port: <- `${websocket-port}`
+      publish: false
+  variables:
+    mqtt-port:
+      type: int
+      value: 1883
+    websocket-port:
+      type: int
+      value: 9001
+    allow-anonymous:
+      type: bool
+      value: true
+    max-connections:
+      type: int
+      value: -1
+    log-level:
+      type: string
+      value: information
+    persistence:
+      type: bool
+      value: true
+    websocket-enabled:
+      type: bool
+      value: true
+    retain-available:
+      type: bool
+      value: true
