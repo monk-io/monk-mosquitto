@@ -1,0 +1,146 @@
+---
+title: Eclipse Mosquitto
+description: Ready-to-run Eclipse Mosquitto container template you can run directly or inherit to integrate an MQTT message broker into your IoT infrastructure.
+primary_category: messaging
+tags: [mosquitto, mqtt, iot, template, runnable, message-broker, pub-sub]
+integration_type: template
+hosting_models: [self-hosted]
+website_url: https://mosquitto.org/
+docs_url: https://mosquitto.org/documentation/
+publisher: monk.io
+---
+
+## Overview
+
+This template provides a production‑ready Eclipse Mosquitto instance as a Monk runnable. You can:
+
+- Run it directly to get a managed MQTT broker with sensible defaults
+- Inherit it in your own runnable to seamlessly add MQTT messaging to your IoT infrastructure
+
+It exposes MQTT on port 1883, WebSocket on port 9001, persists data to a host volume, and supports full MQTT v3.1, v3.1.1, and v5.0 protocols. Eclipse Mosquitto is an open-source message broker that is lightweight and suitable for use on all devices from low-power single board computers to full servers.
+
+## What this template manages
+
+- Mosquitto MQTT broker container (`eclipse-mosquitto` image, configurable tag)
+- Network service on port 1883 (MQTT)
+- Network service on port 9001 (WebSocket)
+- Persistent volumes for data storage
+- Auto-generated configuration file with customizable settings
+
+## Quick start (run directly)
+
+1) Load templates
+
+```bash
+monk load MANIFEST
+```
+
+2) Run Mosquitto with defaults
+
+```bash
+monk run mosquitto/mosquitto-broker
+```
+
+3) Customize configuration (recommended via inheritance)
+
+Running directly uses the defaults defined in this template's `variables`. To customize settings, you can:
+
+- Preferred: inherit and override variables as shown below.
+- Alternative: fork/clone and edit the `variables` in `mosquitto.yml`, then `monk load MANIFEST` and run.
+
+Once started, connect MQTT clients to `localhost:1883` (or the runnable hostname inside Monk networks) and WebSocket clients to `localhost:9001`.
+
+## Configuration
+
+Key variables you can customize in this template:
+
+```yaml
+variables:
+  mqtt-port: 1883                    # MQTT TCP port
+  websocket-port: 9001               # WebSocket port for MQTT over WS
+  allow-anonymous: true              # Allow connections without authentication
+  max-connections: -1                # Maximum concurrent connections (-1 = unlimited)
+  persistence: true                  # Enable message persistence
+  retain-available: true             # Allow retained messages
+  log-level: "information"           # Logging level
+  websocket-enabled: true            # Enable WebSocket listener
+```
+
+Data is persisted under `${monk-volume-path}/mosquitto/data` on the host. The configuration file is auto-generated from the template at `/mosquitto/config/mosquitto.conf`.
+
+## Use by inheritance (recommended for apps)
+
+Inherit the Mosquitto runnable in your IoT application and declare a connection. Example:
+
+```yaml
+namespace: myapp
+mqtt:
+  defines: runnable
+  inherits: mosquitto/mosquitto-broker
+  variables:
+    allow-anonymous:
+      value: false
+    max-connections:
+      value: 1000
+sensor-api:
+  defines: runnable
+  containers:
+    api:
+      image: myorg/iot-api
+  connections:
+    message-broker:
+      runnable: mqtt
+      service: mqtt
+  variables:
+    mqtt-host:
+      value: <- connection-hostname("message-broker")
+    mqtt-port:
+      value: <- connection-port("message-broker")
+```
+
+Then run your app group:
+
+```bash
+monk run myapp/sensor-api
+```
+
+## Ports and connectivity
+
+- Service: `mqtt` on TCP port `1883` (default)
+- Service: `websocket` on TCP port `9001` (default)
+- From other runnables in the same process group, use `connection-hostname("<connection-name>")` to resolve the broker host.
+
+## Persistence and configuration
+
+- Data path: `${monk-volume-path}/mosquitto/data:/mosquitto/data`
+- Configuration is auto-generated from template variables and mounted at `/mosquitto/config/mosquitto.conf`
+- Supports message persistence, retained messages, and persistent sessions
+
+## Features
+
+- MQTT v3.1, v3.1.1, and v5.0 support
+- QoS levels 0, 1, and 2
+- Retained messages
+- Last Will and Testament
+- WebSocket support for browser-based clients
+- Message persistence
+- Configurable connection limits
+- Flexible logging
+
+## Related templates
+
+- Use with microservices for async communication
+- Combine with stream processing (Kafka Streams, Flink)
+- Integrate with monitoring (`prometheus-grafana/`)
+- Pair with Node-RED for IoT workflow automation
+
+## Troubleshooting
+
+- If you changed `allow-anonymous` to `false`, ensure you have configured authentication (password file or auth plugin) in a custom configuration.
+- Ensure the host volumes are writable by the container user.
+- For production use, consider setting `allow-anonymous: false` and configuring proper authentication.
+- Check logs:
+
+```bash
+monk logs -l 500 -f mosquitto/mosquitto-broker
+```
