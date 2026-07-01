@@ -30,9 +30,6 @@ mosquitto-broker:
     broker:
       paths:
         - <- `${monk-volume-path}/mosquitto/data:/mosquitto/data`
-      ports:
-        - <- `${mqtt-port}:${mqtt-port}`
-        - <- `${websocket-port}:${websocket-port}`
   files:
     mosquitto-conf:
       container: broker
